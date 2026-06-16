@@ -227,6 +227,7 @@ class EPGImport:
 			self.afterDownload(None, filename, deleteFile=False)
 
 	def do_download(self, sourcefile, afterDownload, downloadFail):
+		headers = {'User-Agent': 'Twisted client'}
 		path = bigStorage(9000000, "/tmp", "/media/cf", "/media/mmc", "/media/usb", "/media/hdd")
 		filename = join(path, "epgimport")
 		ext = splitext(sourcefile)[1]
@@ -239,11 +240,11 @@ class EPGImport:
 		f = open(filename, "wb")
 		if self.source.nocheck == 1:
 			print("[EPGImport] Not cheching the server since nocheck is set for it: " + sourcefile.decode(), file=log)
-			d = get(sourcefile).addCallback(collect, f.write).addCallbacks(afterDownload, downloadFail, callbackArgs=(filename, True)).addBoth(lambda _: f.close())
+			d = get(sourcefile, headers=headers).addCallback(collect, f.write).addCallbacks(afterDownload, downloadFail, callbackArgs=(filename, True)).addBoth(lambda _: f.close())
 			return filename
 		else:
 			if self.checkValidServer(sourcefile) == 1:
-				d = get(sourcefile).addCallback(collect, f.write).addCallbacks(afterDownload, downloadFail, callbackArgs=(filename, True)).addBoth(lambda _: f.close())
+				d = get(sourcefile, headers=headers).addCallback(collect, f.write).addCallbacks(afterDownload, downloadFail, callbackArgs=(filename, True)).addBoth(lambda _: f.close())
 				return filename
 			else:
 				self.downloadFail("checkValidServer reject the server")
