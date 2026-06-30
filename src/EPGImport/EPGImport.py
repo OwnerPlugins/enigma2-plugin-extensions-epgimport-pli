@@ -14,7 +14,7 @@ from os.path import splitext, join, exists, getsize, split
 import twisted.python.runtime
 from twisted.internet import reactor, ssl, threads
 from twisted.internet._sslverify import ClientTLSOptions
-from twisted.web.client import downloadPage
+from treq import collect, get
 
 try:  # python3
 	from http.client import HTTPException
@@ -229,6 +229,7 @@ class EPGImport:
 			self.afterDownload(None, filename, deleteFile=False)
 
 	def do_download(self, sourcefile, afterDownload, downloadFail):
+		headers = {'User-Agent': 'Twisted client'}
 		path = bigStorage(9000000, "/tmp", "/media/cf", "/media/mmc", "/media/usb", "/media/hdd")
 		filename = join(path, "epgimport")
 		ext = splitext(sourcefile)[1]
@@ -238,13 +239,14 @@ class EPGImport:
 		sourcefile = sourcefile.encode("utf-8")
 		sslcf = SNIFactory(sourcefile) if sourcefile.decode().startswith("https:") else None
 		print("[EPGImport] Downloading: " + sourcefile.decode() + " to local path: " + filename, file=log)
+		f = open(filename, "wb")
 		if self.source.nocheck == 1:
 			print("[EPGImport] Not cheching the server since nocheck is set for it: " + sourcefile.decode(), file=log)
-			downloadPage(sourcefile, filename, timeout=90, contextFactory=sslcf).addCallbacks(afterDownload, downloadFail, callbackArgs=(filename, True))
+			d = get(sourcefile, headers=headers).addCallback(collect, f.write).addCallbacks(afterDownload, downloadFail, callbackArgs=(filename, True)).addBoth(lambda _: f.close())
 			return filename
 		else:
 			if self.checkValidServer(sourcefile) == 1:
-				downloadPage(sourcefile, filename, timeout=90, contextFactory=sslcf).addCallbacks(afterDownload, downloadFail, callbackArgs=(filename, True))
+				d = get(sourcefile, headers=headers).addCallback(collect, f.write).addCallbacks(afterDownload, downloadFail, callbackArgs=(filename, True)).addBoth(lambda _: f.close())
 				return filename
 			else:
 				self.downloadFail("checkValidServer reject the server")
